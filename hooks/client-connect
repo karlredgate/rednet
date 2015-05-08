@@ -1,0 +1,41 @@
+#!/bin/bash
+#
+# knr - client-connect - 2013-12-11
+#
+# Hook script called by openvpn upon a client connection.
+#
+
+. /etc/sysconfig/rednet
+
+uuid=$common_name
+O=$X509_1_O
+OU=$X509_1_OU
+
+function background() {
+    sleep 1
+
+    MAC=$(dialin mac $uuid | tr '[:upper:]' '[:lower:]')
+    [ -z "$MAC" ] && {
+        MAC=$(< $CACHE/$uuid.mac)
+    }
+    echo $MAC > $CACHE/$uuid.mac
+
+    llv6=$( mac2llv6 $MAC )
+    echo $llv6 > $CACHE/$uuid.llv6
+
+    sed --in-place -e "/$uuid/d" /etc/hosts
+    echo "$llv6	$uuid" >> /etc/hosts
+
+    rm -f $SPOOL/$uuid
+
+    # What is the MAC address and thus the IPv6 LL address??
+    wall << END
+Rednet client connected ($O/$OU)
+$uuid using '$MAC'
+LLv6 Address is $llv6
+END
+}
+
+( background &)
+
+: vim:autoindent

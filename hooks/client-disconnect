@@ -1,0 +1,23 @@
+#!/bin/bash
+#
+# knr - client-disconnect - 2013-12-11
+#
+# Hook script called by openvpn upon a client disconnect
+#
+#
+
+. /etc/sysconfig/rednet
+
+uuid=$common_name
+O=$X509_1_O
+OU=$X509_1_OU
+
+rm -f $CACHE/$uuid.mac
+rm -f $CACHE/$uuid.llv6
+
+    wall << END
+Rednet client disconnected ($O/$OU)
+$uuid
+END
+
+: vim:autoindent
