@@ -1,0 +1,75 @@
+#!/bin/bash
+#
+# Generate a rednet config rdf file for a specific client
+#
+
+[ $# -eq 1 ] || {
+    echo "usage: $0 <client-uuid>"
+    exit 1
+}
+
+. /etc/sysconfig/rednet
+PATH=$PATH:/usr/sbin:/sbin
+
+client=${1:-DEFAULT}
+METADATAURL=http://169.254.169.254/latest/meta-data
+
+XSLTDIR=${XSLTDIR:-$SHARE}
+
+TEMPDIR=/tmp/client$$
+CAXML=$TEMPDIR/ca.xml
+ClientXML=$TEMPDIR/client.xml
+DHXML=$TEMPDIR/dh.xml
+SSHXML=$TEMPDIR/ssh.xml
+
+function wrap() {
+    local element=$1
+    local filename=$2
+
+    cat <<END
+<?xml version='1.0' ?>
+<rednet:$element xmlns:rednet="http://redgates.com/2015/5/rednet"><![CDATA[
+END
+    cat $filename
+    cat <<END
+]]></rednet:$element>
+END
+}
+
+aws_hostname=$( ip -oneline -4 address list dev eth0 | sed -e 's/.*inet //' -e 's|/.*||' )
+[ -f /sys/hypervisor/version/extra ] && {
+    case $(</sys/hypervisor/version/extra) in
+    *amazon)
+        aws_hostname=$(curl --silent $METADATAURL/public-hostname)
+        ;;
+    esac
+}
+
+mkdir $TEMPDIR
+
+#
+# Wrap the keys in xml to allow xslt processing.
+#
+wrap certificate $PKIDIR/ca.cert       > $CAXML
+wrap key         $PKIDIR/dh.pem        > $DHXML
+wrap key         $HOME/.ssh/rednet.pub > $SSHXML
+
+[ -f $CACHE/$client.cert ] || cp /dev/null $CACHE/$client.cert
+wrap certificate $CACHE/$client.cert > $ClientXML
+
+#
+# Populate template with keys, and cache client config.
+#
+xsltproc --stringparam certificateFile       $CAXML        \
+         --stringparam clientCertificateFile $ClientXML    \
+         --stringparam serverKeyFile         $DHXML        \
+         --stringparam sshKeyFile            $SSHXML       \
+         --stringparam serverAddress         $aws_hostname \
+         $XSLTDIR/merge.xslt $XSLTDIR/template.rdf > $CACHE/$client.rdf
+
+rm -rf $TEMPDIR
+
+# each client gets an xslted rdf file - change the server name from the
+# EC2 instance meta-data - and set the port??
+
+: vim:autoindent expandtab sw=4
