@@ -1,0 +1,45 @@
+#!/bin/bash
+#
+# Sign the client certificate signing request and cache
+# the resulting certificate for consumption by the client
+# configuration script.
+#
+# The client NEVER sends its private key over the wire.
+# It ONLY ever exists on the client machine.
+#
+# TODO:
+#  * Find a way to have the S3 bucket write of the CSR
+#    trigger this script.
+#
+
+. /etc/sysconfig/rednet
+
+# Can we extract the UUID from the CSR - or maybe the
+# file is named as the UUID
+function sign() {
+    local uuid=$1
+    local csr=$CACHE/$uuid.csr
+    local cert=$CACHE/$uuid.cert
+    local subject="$BASESUBJECT$uuid"
+
+    [ -f $csr ] || {
+        echo "CSR $csr - file not found"
+        exit 1
+    }
+
+    sed --in-place -e "/$uuid/d" /etc/pki/rednet/index.txt
+
+    openssl ca -batch \
+               -days 365 \
+               -out $cert \
+               -in $csr \
+               -md sha1 \
+               -config $PKIDIR/server.conf \
+               -name RednetCA \
+               -subj "$subject"
+}
+
+# sign the CSR - storing result in the cache as $CACHE/$UUID.cert
+sign $1
+
+: vim:autoindent expandtab
