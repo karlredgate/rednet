@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# Request that a client disconnect from the OpenVPN server.
+# The client is identified by its SMBIOS system UUID.
+#
+
+. /etc/sysconfig/rednet
+
+[ $# -lt 1 ] && {
+    # change to man rednet-disconnect
+    echo "Usage: rednet disconnect <client-uuid>"
+    exit 1
+}
+
+function is_uuid() {
+    case $1 in
+    ????????-????-????-????-????????????) return 0 ;;
+    *) return 1 ;;
+    esac
+}
+
+uuid=$1
+
+is_uuid $uuid || {
+    echo "argument MUST be a UUID"
+    exit 1
+}
+
+# rm -f $CACHE/$uuid.rdf
+rm -f $SPOOL/$uuid
+s3-delete $uuid rednet.rdf
+
+: vim:autoindent expandtab

@@ -1,0 +1,108 @@
+#!/bin/bash
+#
+# utility script to list clients pending connection state
+#
+
+. /etc/sysconfig/rednet
+
+# ssh with arguments
+function tssh() {
+    ssh -o LogLevel=quiet -o ConnectTimeout=5 $*
+}
+
+function reachable() {
+    local address=$1
+    ping6 -q -w 0.5 -c 1 -I $INTERFACE $address > /dev/null 2>&1
+}
+
+function probe() {
+    ping6 -q -c 3 -I $INTERFACE ff02::1 > /dev/null 2>&1
+    # fe80::883:ecff:fe63:81c6 lladdr 0a:83:ec:63:81:c6 STALE
+    ip neighbor list dev $INTERFACE | while read address type mac state
+    do
+        uuid=$( tssh root@${address}%$INTERFACE cat /var/run/inventory/system-uuid )
+        echo "$uuid  $address"
+    done
+}
+
+IGNORE=0
+REACHABLE=1
+CONNECTED=2
+SIGNED=3
+PENDING=4
+
+function determine_state() {
+    local uuid=$1
+
+    local spool=$SPOOL/$uuid
+    local csr=$uuid.csr
+    local llv6=$uuid.llv6
+
+    [ -f $llv6 ] && {
+        address=$(< $llv6)
+        reachable $address && return $REACHABLE
+        return $CONNECTED
+    }
+
+    [ -f $spool ] && {
+        [ -f $csr   ] && return $SIGNED
+        return $PENDING
+    }
+
+    return $IGNORE
+}
+
+function print_address() {
+    local uuid=$1
+    local state=$2
+
+    local llv6=$uuid.llv6
+    local address=$(< $llv6)
+    local meta="[${address}%${INTERFACE}]"
+
+    [ -z "$address" ] && meta="**UNKNOWN**"
+
+    printf "%-40s %-12s %s\n" $uuid $state "$meta"
+}
+
+function print_pending() {
+    local uuid=$1
+    local state=$2
+
+    local spool=$SPOOL/$uuid
+    let elapsed=$(date +%s)-$(stat --format=%Y $spool)
+    local message=''
+    (( $elapsed > 600 )) && message=': Error - too long'
+
+    printf "%-40s %-12s (%d seconds%s)\n" $uuid pending $elapsed "$message"
+}
+
+shopt -s nullglob
+
+cd $CACHE
+
+let count=0
+
+for rdf in *.rdf
+do
+    uuid=${rdf%.rdf}
+
+    determine_state $uuid
+    state=$?
+    case $state in
+    $IGNORE)    continue ;;
+    $REACHABLE) print_address $uuid reachable ;;
+    $CONNECTED) print_address $uuid connected ;;
+    $SIGNED)    print_pending $uuid signed ;;
+    $PENDING)   print_pending $uuid pending ;;
+    *)          printf "%-40s %-12s\n" $uuid "UNKNOWN-STATE($state)" ;;
+    esac
+    let count++
+
+done
+
+(( $count == 0 )) && {
+    echo "No clients currently connected"
+}
+
+: vim:autoindent expandtab

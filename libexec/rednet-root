@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# utility script to connect to client
+#
+
+. /etc/sysconfig/rednet
+
+uuid=$1
+mac=$(< $CACHE/$uuid.mac)
+llv6=$(< $CACHE/$uuid.llv6)
+
+shift
+echo "Connecting to ${llv6}%$INTERFACE"
+exec ssh -o ConnectTimeout=10 -o LogLevel=quiet root@${llv6}%$INTERFACE $@
+
+: vim:autoindent expandtab

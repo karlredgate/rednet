@@ -1,0 +1,42 @@
+#!/bin/bash
+#
+# Request that a client connect to the OpenVPN server.
+# The client is identified by its SMBIOS system UUID.
+#
+# The request is spooled in /var/spool/rednet/$uuid which triggers
+# the creation of the client's RDF config in its config area??
+# Once the client connects, the client connection hook script
+# clears the spool file.
+#
+
+. /etc/sysconfig/rednet
+
+function die() {
+    echo $* 1>&2
+    exit 1
+}
+
+[ $# -lt 1 ] && die "Usage: rednet connect <client-uuid>"
+
+function is_uuid() {
+    case $1 in
+    ????????-????-????-????-????????????) return 0 ;;
+    *) return 1 ;;
+    esac
+}
+
+uuid=$1
+
+is_uuid $uuid || echo "argument MUST be a UUID"
+
+rdf=$CACHE/$uuid.rdf
+[ -f $rdf ] || {
+    generate-client-config $uuid || die "Cannot create config for $uuid"
+}
+
+s3-put $uuid $rdf rednet.rdf || die "Cannot queue connection to $uuid"
+
+# The spool file is removed by the connection hook
+cp $rdf $SPOOL/$uuid
+
+: vim:autoindent expandtab

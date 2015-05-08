@@ -1,0 +1,41 @@
+#!/bin/bash
+#
+# utility script to list clients
+#
+
+. /etc/sysconfig/rednet
+
+# ssh with arguments
+function tssh() {
+    ssh -o ConnectTimeout=5 -o LogLevel=quiet $*
+}
+
+function probe() {
+    ping6 -q -c 3 -I $INTERFACE ff02::1 > /dev/null 2>&1
+    # fe80::883:ecff:fe63:81c6 lladdr 0a:83:ec:63:81:c6 STALE
+    ip neighbor list dev $INTERFACE | while read address type mac state
+    do
+        uuid=$( tssh root@${address}%$INTERFACE cat /var/run/inventory/system-uuid )
+        echo "$uuid  $address"
+    done
+}
+
+shopt -s nullglob
+
+case "$1" in
+probe) probe ;;
+"") ;;
+*)
+    echo "usage: $0 [probe]"
+    exit 1
+esac
+
+cd $CACHE
+for f in *.llv6
+do
+    uuid=${f%.llv6}
+    llv6=$(< $f)
+    echo "$uuid    $llv6"
+done
+
+: vim:autoindent expandtab

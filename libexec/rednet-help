@@ -1,0 +1,6 @@
+#!/bin/bash
+
+[ $# -eq 0 ] && exec man rednet
+exec man rednet-$1
+
+: vim:autoindent expandtab

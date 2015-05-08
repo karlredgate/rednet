@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# knr - rednet-cp - 2012
+#
+# utility script to connect to client
+#
+
+. /etc/sysconfig/rednet
+
+filename=$1
+uuid=$2
+
+[ -z "$filename" -o -z "$uuid" ] && {
+    echo "usage: $0 <filename> <client-uuid>"
+    exit 1
+}
+
+[ -f $filename ] || {
+    echo "file '$filename' does not exist"
+    exit 1
+}
+
+[ -f $CACHE/$uuid.llv6 ] || {
+    echo "no config present for client $uuid"
+    exit 1
+}
+
+mac=$(< $CACHE/$uuid.mac)
+llv6=$(< $CACHE/$uuid.llv6)
+
+exec scp -o ConnectTimeout=5 $filename "[${llv6}%${INTERFACE}]":
+
+: vim:autoindent expandtab

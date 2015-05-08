@@ -1,0 +1,42 @@
+#!/usr/bin/ruby
+
+require 'socket'
+
+sock = TCPSocket.open('127.0.0.1',1194)
+hello = sock.readline
+sock.puts "status 2\n"
+sock.puts "exit\n"
+
+$clients = Hash.new { |hash,key| hash[key] = {} }
+
+def process_client(line)
+    @column = line.split(',')
+    client = $clients[ @column[1] ]
+    client[:id] = @column[1]
+    client[:endpoint] = @column[2]
+end
+
+def process_route(line)
+    @column = line.split(',')
+    client = $clients[ @column[2] ]
+    client[:mac] = @column[1]
+end
+
+def report_all_clients
+    $clients.values.each { |client| print "#{client[:id]} #{client[:mac]}\n" }
+    Kernel.exit
+end
+
+sock.readlines.each { |line|
+    process_client(line) if line.match /^CLIENT_LIST/
+    process_route(line) if line.match /^ROUTING_TABLE/
+}
+
+id = ARGV[0]
+
+report_all_clients if id.nil?
+
+client = $clients[id]
+raise "no client" if client[:id].nil?
+
+print "#{ client[:mac] }\n"
