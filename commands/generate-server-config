@@ -1,0 +1,138 @@
+#!/bin/bash
+#
+# This could be run every boot, in order for this to exist
+# on an EC2 instance that loses its disk modifications upon
+# every boot.
+#
+# It could also be run every time the server returns to
+# 0 client connections.
+#
+# Both provide security by configuration not being persistent.
+#
+
+PKI=/etc/pki/rednet
+SUBJECT='/C=US/ST=MA/L=Boston/O=Redgates/OU=CloudSwitch/CN=rednetserver'
+
+date +%s > $PKI/serial
+cp /dev/null $PKI/index.txt
+
+function create_diffie_hellman_key() {
+    openssl dhparam -outform PEM -out $PKI/dh.pem 1024
+}
+
+#
+# create certificate authority certificate and private key
+#
+# Don't think I need the -newkey and -sha1 args??
+#
+function create_CA_certificate() {
+    openssl req -batch \
+                -days 365 \
+                -nodes \
+                -new \
+                -newkey rsa:1024 \
+                -sha1 \
+                -x509 \
+                -subj "$SUBJECT" \
+                -keyout $PKI/ca.key \
+                -out $PKI/ca.cert
+}
+
+#
+# generate server certificate signing request
+#
+function create_server_csr() {
+    openssl req -batch \
+                -config $PKI/server.conf \
+                -extensions server \
+                -days 365 \
+                -nodes \
+                -new \
+                -newkey rsa:1024 \
+                -subj "$SUBJECT" \
+                -keyout $PKI/server.key \
+                -out    $PKI/server.csr
+    chmod 0700 $PKI/server.key
+}
+
+#
+# Sign the server certificate request
+#
+function sign_server_csr() {
+    openssl ca -batch \
+               -config $PKI/server.conf \
+               -name RednetCA \
+               -extensions server \
+               -days 365 \
+               -md sha1 \
+               -subj "$SUBJECT" \
+               -in $PKI/server.csr \
+               -out $PKI/server.cert
+}
+
+for command in create_diffie_hellman_key create_CA_certificate create_server_csr sign_server_csr
+do
+    echo "$command ..."
+    output=$($command 2>&1) || {
+        echo "$command failed: $output"
+	exit 1
+    }
+done
+
+#
+# Create SSH config.
+# The public key will be provided to the client to allow
+# the rednet server to login
+#
+
+function setup_ssh_for() {
+    local user=$1
+    local homedir=$( getent passwd $user | cut --delimiter=: --fields=6 )
+    local sshdir=$homedir/.ssh
+    local config=$sshdir/config
+
+    mkdir -p $sshdir
+    chmod 700 $sshdir
+    chown $user $sshdir
+
+    cp rednet rednet.pub $sshdir/
+    chown $user $sshdir/dialin*
+
+    touch $config
+    chmod 600 $config
+    chown $user $config
+
+    # change local config to point default IdentityFile at the new key
+    # and disable KnownHosts ...
+    sed --in-place -e '/^IdentityFile/d' \
+                   -e '/^StrictHostKeyChecking /d' \
+	           -e '/^UserKnownHostsFile/d' \
+	           -e '/^User /d' \
+	           $config
+
+    # This could be made per appliance - but there is no need yet
+    cat >> $config <<END
+IdentityFile ~/.ssh/rednet
+StrictHostKeyChecking no
+UserKnownHostsFile /dev/null
+User remote-access-user
+END
+
+}
+
+echo "Generate ssh key for rednet"
+tmp=.ds$$
+mkdir $tmp
+cd $tmp
+
+ssh-keygen -q -N '' -f rednet -C 'EC2 rednet server'
+
+for user in root ec2-user
+do
+    setup_ssh_for $user
+done
+
+cd ..
+rm -rf $tmp
+
+: vim:autoindent expandtab
