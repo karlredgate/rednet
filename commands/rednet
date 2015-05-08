@@ -1,0 +1,13 @@
+#!/bin/bash
+
+command="/usr/libexec/rednet/rednet-${1:-help}"
+shift
+
+[ -x $command ] || {
+    echo "Invalid rednet command"
+    exit 1
+}
+
+exec $command $*
+
+: vim:autoindent expandtab sw=4
