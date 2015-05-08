@@ -1,0 +1,10 @@
+#
+# Global environment for Rednet Cloud Switch service
+#
+
+PKIDIR=/etc/pki/rednet
+CACHE=/var/cache/rednet
+SPOOL=/var/spool/rednet
+SHARE=/usr/share/rednet
+BASESUBJECT="/C=US/ST=MA/L=Boston/O=Redgates/OU=CloudSwitch/CN="
+INTERFACE=tap0
