@@ -1,0 +1,33 @@
+#!/bin/bash
+#
+# LLv6 address is fe80::+EUI64
+# EUI64 takes a MAC address and:
+# 1) split its 6 octets into 2 groups of 3 octets
+# 2) stuff fffe in the middle
+# 3) then XOR the top octet with 0x02
+# 4) then split the whole thing on 16bit boundaries
+#    and insert ':' between them
+#
+# for example:
+# 1) 0e:00:fc:51:82:0f       ->  0e:00:fc       51:82:0f
+# 2) 0e:00:fc       51:82:0f ->  0e:00:fc:ff:fe:51:82:0f
+# 3) 0e:00:fc:ff:fe:51:82:0f ->  0c:00:fc:ff:fe:51:82:0f
+# 4) 0c:00:fc:ff:fe:51:82:0f ->  0c00:fcff:fe51:820f
+#    ending up with fe80::0c00:fcff:fe51:820f
+#
+
+mac="$1"
+
+[ -z "$mac" ] && {
+    echo "usage: $0 <mac-address>" 1>&2
+    exit 1
+}
+
+a=( ${mac//:/ } )
+n0=${a[0]%?}
+n1=${a[0]#?}
+n1=$(( 16#$n1 ^ 16#02 ))
+a[0]=$(printf "%x%x" 0x$n0 $n1)
+echo fe80::${a[0]}${a[1]}:${a[2]}ff:fe${a[3]}:${a[4]}${a[5]}
+
+: vim:autoindent
