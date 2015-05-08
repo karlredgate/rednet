@@ -1,0 +1,5 @@
+# Mailto should change
+#
+MAILTO=root
+
+*/2 * * * *  root	/usr/libexec/rednet/poll-client-signing-requests
