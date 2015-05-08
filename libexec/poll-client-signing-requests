@@ -1,0 +1,55 @@
+#!/bin/bash
+#
+# Check for a signing request from each client in the spooled
+# connection request list.
+#
+
+exec >> /var/log/rednet/csr.log 2>&1
+. /etc/sysconfig/rednet
+
+#
+# shell functions for logging
+#
+function notice() {
+    logger -t rednet-csr -p cron.notice "$*"
+}
+
+function error() {
+    logger -t rednet-csr -p cron.err "$*"
+}
+
+#
+# Check the bucket for this UUID to see if there is a
+# signing request - if present download it to the cache.
+#
+function csr_exists_for() {
+    local client=$1
+    rm -f $CACHE/$client.csr
+    s3-get $client rednet.csr $CACHE/$client.csr
+}
+
+# Set shell such that "for" loop has 0 iterations if there are no
+# files in the spool area.
+shopt -s nullglob
+
+cd /var/spool/rednet
+
+for client in *
+do
+    notice "Check $client for CSR"
+    csr_exists_for $client || continue
+    notice "found CSR from $client"
+    sign-client-request $client || {
+        error "failed to sign CSR for $client"
+        continue
+    }
+    # TODO: Generate new info for client and push to client bucket
+    generate-client-config $client
+    s3-put "$client" $CACHE/$client.rdf rednet.rdf || {
+        error "Could not post updated client config to S3: $client"
+        continue
+    }
+    notice "signed and delivered cert to $client"
+done
+
+# vim:autoindent expandtab
