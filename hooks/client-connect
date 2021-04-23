@@ -11,6 +11,7 @@ uuid=$common_name
 O=$X509_1_O
 OU=$X509_1_OU
 
+# Need to fix this to use new commands
 function background() {
     sleep 1
 
