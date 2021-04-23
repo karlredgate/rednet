@@ -86,13 +86,15 @@ rm -rf $RPM_BUILD_ROOT
 /etc/openvpn/server.conf
 /etc/pki/rednet/server.conf
 /usr/bin
-/usr/share/python/
+# for S3 access - look at old repo to see it you still need
+# /usr/share/python/
 /usr/libexec/rednet
 /usr/share/rednet
 /usr/share/man/
-%attr(0700,ec2-user,rednet) /home/ec2-user/.ssh
-%attr(0600,ec2-user,rednet) /home/ec2-user/.ssh/authorized_keys
-%attr(0775,ec2-user,rednet) /var/cache/carbonite/s3
+# these are for public keys
+# %attr(0700,ec2-user,rednet) /home/ec2-user/.ssh
+# %attr(0600,ec2-user,rednet) /home/ec2-user/.ssh/authorized_keys
+%attr(0775,ec2-user,rednet) /var/cache/rednet/s3
 /var/run/rednet
 /var/log/rednet/
 %attr(0775,root,rednet) /var/cache/rednet/
