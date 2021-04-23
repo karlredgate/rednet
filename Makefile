@@ -50,7 +50,8 @@ repo: rpm
 	rm -rf repo
 	mkdir -p repo/Packages
 	cp rpm/RPMS/*/*.rpm repo/Packages
-	cp rpmcache/*.rpm repo/Packages
+	: cp rpmcache/*.rpm repo/Packages
+	@echo "Skipping cached RPMs - do not have any right now"
 	createrepo --quiet --unique-md-filenames repo
 
 rpm: build
