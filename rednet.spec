@@ -85,7 +85,7 @@ rm -rf $RPM_BUILD_ROOT
 /etc/bash_completion.d/
 /etc/openvpn/server.conf
 /etc/pki/rednet/server.conf
-/usr/bin
+/usr/bin/*
 # for S3 access - look at old repo to see it you still need
 # /usr/share/python/
 /usr/libexec/rednet
