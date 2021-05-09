@@ -13,7 +13,8 @@ INSTALL_DIR = $(INSTALL) -d --mode=755
 
 EC2=ec2-SOMEIP.us-west-2.compute.amazonaws.com
 
-default: iso
+# default: iso
+default: repo
 
 vm: iso
 	sudo ./util/create-server.sh
