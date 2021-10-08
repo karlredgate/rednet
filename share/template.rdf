@@ -44,7 +44,6 @@
   <rednet:SSH rdf:about='http://redgates.com/2015/5/rednet/SSH'>
     <dc:description>
     The ssh public key for access to appliance.
-    The private key is ONLY present within Carbonite.
     </dc:description>
     <rednet:key></rednet:key>
   </rednet:SSH>
